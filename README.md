@@ -1,124 +1,177 @@
-# Stage229: Signed Fail Evidence (Ed25519)
+# Stage230: Signed Evidence Bundle for Surface-Level Proof
 
 ## Overview
 
-Stage229 introduces **cryptographic authenticity** to fail evidence.
+Stage230 introduces a **Signed Evidence Bundle** for QSP.
 
-Failures are no longer just recorded and hashed —  
-they are now **digitally signed and independently verifiable**.
+Up to Stage229, the project provided multiple verifiable security artifacts:
 
-This transforms the system from:
+- fail evidence
+- transparency log artifacts
+- signed checkpoints
+- proof artifacts
+- monitoring outputs
+- claim documents
 
-- verifiable logs → **cryptographic evidence**
+Stage230 moves from **point-by-point proof** to **surface-level proof** by collecting those artifacts into a single deterministic manifest and signing that manifest with Ed25519.
 
----
+This means the project no longer says only:
 
-## Core Pipeline
+- "there are several pieces of evidence"
 
+It can now say:
 
-Attack
-↓
-Fail detection
-↓
-Log persistence
-↓
-SHA256 (Integrity)
-↓
-Ed25519 Signature (Authenticity)
-↓
-Transparency Log (Merkle Tree)
-↓
-Independent Verification
-
+- "there is one signed evidence surface that binds those pieces together"
 
 ---
 
-## What This Stage Achieves
+## What Stage230 Adds
 
-### Before (Stage228)
-- Fail logs persisted
-- SHA256 ensures integrity
-- Tampering detectable
+Stage230 adds:
 
-### After (Stage229)
-- Evidence is **signed**
-- Proven origin (authenticity)
-- Non-repudiation
-- Third-party verifiable
-
----
-
-## Cryptographic Properties
-
-| Property        | Status |
-|----------------|--------|
-| Integrity      | ✅ SHA256 |
-| Authenticity   | ✅ Ed25519 |
-| Non-repudiation| ✅ Signature |
-| Transparency   | ✅ Merkle Tree |
+- deterministic evidence bundle manifest generation
+- SHA256 hashing of each referenced file
+- Ed25519 signature over the canonical bundle payload
+- signature verification
+- referenced-file integrity verification
+- reproducible execution script
+- automated test for end-to-end bundle generation and verification
 
 ---
 
-## Evidence Structure
+## Security Meaning
+
+The Signed Evidence Bundle lets a reviewer verify:
+
+1. the bundle payload was not modified
+2. the payload was signed by the expected signer
+3. every referenced file still matches its recorded SHA256 hash
+
+This strengthens the project from isolated evidence verification to **signed evidence binding**.
+
+---
+
+## Repository Structure
+
+```text
+docs/
+  signed_evidence_bundle.md
+
+tools/
+  build_signed_evidence_bundle.py
+  verify_signed_evidence_bundle.py
+  run_stage230_signed_bundle.sh
+
+tests/
+  test_signed_evidence_bundle.py
+
+out/bundle/
+  evidence_bundle_payload.json
+  evidence_bundle_signature.json
+  evidence_bundle_summary.json
+Requirements
+Python 3.10+
+cryptography
+pytest
 
 Example:
 
-```json
-{
-  "version": 1,
-  "type": "fail_evidence",
-  "log_file": "out/failures/downgrade_fail.log",
-  "sha256": "...",
-  "size_bytes": 147,
-  "line_count": 4,
-  "status": "signed",
-  "signature": "...",
-  "public_key": "-----BEGIN PUBLIC KEY-----..."
-}
+python3 -m pip install cryptography pytest
+Key Generation
+
+Generate an Ed25519 signing keypair:
+
+mkdir -p keys
+
+python3 - << 'EOF'
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+from cryptography.hazmat.primitives import serialization
+
+private_key = Ed25519PrivateKey.generate()
+public_key = private_key.public_key()
+
+with open("keys/checkpoint_signing_private.pem", "wb") as f:
+    f.write(
+        private_key.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.PKCS8,
+            encryption_algorithm=serialization.NoEncryption(),
+        )
+    )
+
+with open("keys/checkpoint_signing_public.pem", "wb") as f:
+    f.write(
+        public_key.public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo,
+        )
+    )
+
+print("[OK] key pair generated")
+EOF
 Quick Start
 
-Run the full pipeline:
+Run the Stage230 signed bundle flow:
 
-bash tools/run_stage229_signed_fail_evidence.sh
-Verification
-Verify evidence integrity
-python3 tools/verify_fail_evidence.py \
-  --index out/fail_evidence/index.json
-Verify signatures
-python3 tools/verify_signature.py \
-  --evidence out/fail_evidence/*.evidence.json
-Verify transparency log
-python3 tools/verify_transparency_log.py \
-  --log out/transparency/transparency_log.json \
-  --tree out/transparency/merkle_tree.json \
-  --root out/transparency/root.txt
-Security Model
-Guarantees
-Evidence cannot be modified without detection
-Evidence origin is cryptographically provable
-Anyone can verify independently
-Non-goals
-Not a full protocol security proof
-Does not prevent attacks
-Focus is evidence integrity + authenticity
-Key Management
-Private keys are never committed
-Public keys are included for verification
-.gitignore enforces secret protection
-Project Position
+bash tools/run_stage230_signed_bundle.sh
 
-Stage229 represents the transition from:
+Expected outputs:
 
-Forensic evidence → Cryptographic evidence system
+out/bundle/evidence_bundle_payload.json
+out/bundle/evidence_bundle_signature.json
+out/bundle/evidence_bundle_summary.json
 
-This is a foundational step toward:
+Example verification output:
 
-reproducible security proofs
-verifiable incident evidence
-research-grade validation pipelines
+[OK] bundle_id: qsp-stage230-signed-evidence-bundle
+[OK] file_count: 32
+[OK] signature verified
+[OK] verified_files: 32
+[OK] Stage230 signed evidence bundle complete
+Run Tests
+pytest -q
+Verification Model
+
+Stage230 verifies a signed evidence surface in this order:
+
+Evidence Files
+    ↓
+Deterministic Manifest
+    ↓
+SHA256 Binding
+    ↓
+Ed25519 Signature
+    ↓
+Independent Verification
+
+This provides a stronger review surface for external researchers, implementers, and auditors.
+
+Why This Matters
+
+Stage229 preserved individual evidence artifacts.
+
+Stage230 binds them together cryptographically.
+
+That is the key evolution:
+
+Stage229 = evidence exists
+Stage230 = evidence exists as one signed verification surface
+
+This improves:
+
+integrity
+reviewer clarity
+external reproducibility
+auditability
+security communication
+Notes
+The public key may be committed for verification.
+The private key must never be committed.
+Generated bundle outputs should remain untracked.
+This repository is not a full cryptographic security proof of a deployed protocol.
+It is a reproducible verification framework for signed security evidence binding.
 License
 
 MIT License
 
-© 2025 Motohiro Suzuki
-EOF
+Copyright (c) 2025 Motohiro Suzuki
