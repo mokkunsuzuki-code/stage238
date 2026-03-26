@@ -4,14 +4,8 @@ out/
 # python cache
 __pycache__/
 *.pyc
+.pytest_cache/
 
 # private keys
 keys/*_private.pem
 keys/*.key
-
-# private keys
-keys/*_private.pem
-keys/*.key
-
-# stage230 generated bundle artifacts
-out/bundle/
