@@ -7,5 +7,10 @@ __pycache__/
 .pytest_cache/
 
 # private keys
-keys/*_private.pem
-keys/*.key
+keys/private/
+*.key
+*_private.pem
+*_private.asc
+
+# local gpg temp homes
+.gnupg-stage234/
