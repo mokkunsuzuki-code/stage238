@@ -1,108 +1,124 @@
-# QSP Stage228 — Fail Evidence Persistence
+# Stage229: Signed Fail Evidence (Ed25519)
 
-This stage introduces **fail evidence persistence** to the QSP verification pipeline.
+## Overview
 
-Instead of only detecting failures, Stage228 ensures that failures are:
+Stage229 introduces **cryptographic authenticity** to fail evidence.
 
-- recorded
-- hashed (SHA256)
-- stored as tamper-evident evidence
-- verifiable later
+Failures are no longer just recorded and hashed —  
+they are now **digitally signed and independently verifiable**.
 
----
+This transforms the system from:
 
-## 🔍 Concept
-
-Flow:
-
-Attack  
-↓  
-Fail Detection  
-↓  
-Log Persistence  
-↓  
-SHA256 Hashing  
-↓  
-Evidence Fixation  
+- verifiable logs → **cryptographic evidence**
 
 ---
 
-## 🎯 Goal
+## Core Pipeline
 
-Stage227:
-- Detect failure
 
-Stage228:
-- Preserve failure as **tamper-evident forensic evidence**
+Attack
+↓
+Fail detection
+↓
+Log persistence
+↓
+SHA256 (Integrity)
+↓
+Ed25519 Signature (Authenticity)
+↓
+Transparency Log (Merkle Tree)
+↓
+Independent Verification
 
-This enables:
-
-- forensic analysis
-- auditability
-- reproducible verification
-- claim → attack → evidence traceability
 
 ---
 
-## 🚀 Quick Start
+## What This Stage Achieves
+
+### Before (Stage228)
+- Fail logs persisted
+- SHA256 ensures integrity
+- Tampering detectable
+
+### After (Stage229)
+- Evidence is **signed**
+- Proven origin (authenticity)
+- Non-repudiation
+- Third-party verifiable
+
+---
+
+## Cryptographic Properties
+
+| Property        | Status |
+|----------------|--------|
+| Integrity      | ✅ SHA256 |
+| Authenticity   | ✅ Ed25519 |
+| Non-repudiation| ✅ Signature |
+| Transparency   | ✅ Merkle Tree |
+
+---
+
+## Evidence Structure
+
+Example:
+
+```json
+{
+  "version": 1,
+  "type": "fail_evidence",
+  "log_file": "out/failures/downgrade_fail.log",
+  "sha256": "...",
+  "size_bytes": 147,
+  "line_count": 4,
+  "status": "signed",
+  "signature": "...",
+  "public_key": "-----BEGIN PUBLIC KEY-----..."
+}
+Quick Start
 
 Run the full pipeline:
 
-```bash
-./tools/run_stage228_fail_evidence.sh
-✅ Verification
+bash tools/run_stage229_signed_fail_evidence.sh
+Verification
+Verify evidence integrity
+python3 tools/verify_fail_evidence.py \
+  --index out/fail_evidence/index.json
+Verify signatures
+python3 tools/verify_signature.py \
+  --evidence out/fail_evidence/*.evidence.json
+Verify transparency log
+python3 tools/verify_transparency_log.py \
+  --log out/transparency/transparency_log.json \
+  --tree out/transparency/merkle_tree.json \
+  --root out/transparency/root.txt
+Security Model
+Guarantees
+Evidence cannot be modified without detection
+Evidence origin is cryptographically provable
+Anyone can verify independently
+Non-goals
+Not a full protocol security proof
+Does not prevent attacks
+Focus is evidence integrity + authenticity
+Key Management
+Private keys are never committed
+Public keys are included for verification
+.gitignore enforces secret protection
+Project Position
 
-Verify that stored evidence matches original logs:
+Stage229 represents the transition from:
 
-python3 tools/verify_fail_evidence.py --index out/fail_evidence/index.json
+Forensic evidence → Cryptographic evidence system
 
-If logs are modified, verification will fail.
+This is a foundational step toward:
 
-📂 Output
-
-Generated artifacts:
-
-out/
-├── failures/
-│   └── downgrade_fail.log
-├── fail_evidence/
-│   ├── downgrade_fail.evidence.json
-│   └── index.json
-🧪 Tests
-
-Run all tests:
-
-pytest -q
-🔐 Security Meaning
-
-This stage transforms failure into:
-
-👉 tamper-evident evidence
-
-Properties:
-
-Integrity (SHA256)
-Reproducibility
-Detectable modification
-External verifiability
-📈 Evolution
-
-Stage226 — Executable system
-Stage227 — Fail detection
-Stage228 — Fail evidence persistence ← You are here
-
-⚠️ Scope
-
-This is not a full protocol security proof.
-
-It is a reproducible framework for:
-
-detecting failures
-preserving them as evidence
-enabling independent verification
-📜 License
+reproducible security proofs
+verifiable incident evidence
+research-grade validation pipelines
+License
 
 MIT License
-© 2025 Motohiro Suzuki
 
+© 2025 Motohiro Suzuki
 EOF
