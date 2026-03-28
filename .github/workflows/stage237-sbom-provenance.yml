@@ -1,0 +1,55 @@
+name: stage237-sbom-provenance
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+  attestations: write
+
+jobs:
+  supply-chain-evidence:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build source bundle artifact
+        run: |
+          chmod +x tools/build_stage237_artifact.sh
+          ./tools/build_stage237_artifact.sh
+
+      - name: Install Syft
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
+
+      - name: Generate SPDX SBOM
+        run: |
+          mkdir -p out/sbom
+          syft . -o spdx-json=out/sbom/stage237_repo.spdx.json
+          test -f out/sbom/stage237_repo.spdx.json
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: stage237-source-bundle
+          path: |
+            dist/stage237_source_bundle.tar.gz
+            dist/stage237_source_bundle.tar.gz.sha256
+          if-no-files-found: error
+
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: stage237-sbom
+          path: out/sbom/stage237_repo.spdx.json
+          if-no-files-found: error
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v3
+        with:
+          subject-path: dist/stage237_source_bundle.tar.gz
