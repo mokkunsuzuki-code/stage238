@@ -1,0 +1,61 @@
+name: reusable-slsa-build
+
+on:
+  workflow_call:
+    inputs:
+      artifact_name:
+        required: true
+        type: string
+      sbom_name:
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+  attestations: write
+
+jobs:
+  build-and-attest:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build artifact
+        run: |
+          chmod +x tools/build_stage238_artifact.sh
+          ./tools/build_stage238_artifact.sh
+
+      - name: Install Syft
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
+
+      - name: Generate SPDX SBOM
+        run: |
+          mkdir -p out/sbom
+          syft dir:. -o spdx-json=out/sbom/${{ inputs.sbom_name }}
+
+      - name: Upload built artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.artifact_name }}
+          path: out/artifacts/stage238-source-bundle.tar.gz
+
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: stage238-sbom-json
+          path: out/sbom/${{ inputs.sbom_name }}
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: out/artifacts/stage238-source-bundle.tar.gz
+
+      - name: Attest SBOM
+        uses: actions/attest-sbom@v2
+        with:
+          subject-path: out/artifacts/stage238-source-bundle.tar.gz
+          sbom-path: out/sbom/${{ inputs.sbom_name }}
